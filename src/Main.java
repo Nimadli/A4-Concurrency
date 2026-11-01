@@ -1,7 +1,9 @@
-import java.awt.Image;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
+import javax.swing.SwingUtilities;
+
 import java.io.File;
+import java.io.IOException;
 
 public class Main {
     public static void main(String[] args) throws Exception{
@@ -28,12 +30,23 @@ public class Main {
             return;
         }
 
-        BufferedImage image = ImageIO.read(new File(args[0]));
+        BufferedImage image = ImageIO.read(new File(fileName));
         System.out.println("Loaded " + image.getWidth() + "x" + image.getHeight());
 
-        processImage(image, squareSize);
+        ImageViewer viewer = new ImageViewer(image);
+        SwingUtilities.invokeLater(viewer::open);
 
-        ImageIO.write(image, "jpg", new File("result.jpg"));
+        Thread worker = new Thread(() -> {
+            processImage(image, squareSize);
+            try {
+                ImageIO.write(image, "jpg", new File("result.jpg"));
+                System.out.println("Saved the file");
+            } catch (IOException e) {
+                System.out.println("Could not save result.jpg: " + e.getMessage());
+            }
+        });
+
+        worker.start();
     }
 
     // Apply averaging function on the whole image
@@ -48,7 +61,7 @@ public class Main {
     // Replace the square starting at (startX, startY) with the mean value of pixels for each color.
     static void averageSquare(BufferedImage image, int startX, int startY, int squareSize){
         long redSum = 0, greenSum = 0, blueSum = 0;
-        int count = squareSize * squareSize;
+        int count = 0;
         int endX = Math.min(startX + squareSize, image.getWidth());
         int endY = Math.min(startY + squareSize, image.getHeight());
 
@@ -58,6 +71,7 @@ public class Main {
                 redSum += (pixel >> 16) & 0xFF;
                 greenSum += (pixel >> 8) & 0xFF;
                 blueSum += pixel & 0xFF;
+                count++;
             }
         }
 
