@@ -5,10 +5,32 @@ import java.io.File;
 
 public class Main {
     public static void main(String[] args) throws Exception{
+        if(args.length != 3){
+            System.out.println("Usage: java -cp out Main <file.jpg> <squareSize> <S|M>");
+            return;
+        }
+        String fileName = args[0];
+        int squareSize;
+        try{
+            squareSize = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            System.out.println("Square size must be a whole number.");
+            return;
+        }
+        if(squareSize < 1){
+            System.out.println("Square size must be at least 1");
+            return;
+        }
+
+        String mode = args[2].toUpperCase();
+        if(!mode.equals("S") && !mode.equals("M")){
+            System.out.println("Mode must be S (single-threaded) or M (multi-threaded).");
+            return;
+        }
+
         BufferedImage image = ImageIO.read(new File(args[0]));
         System.out.println("Loaded " + image.getWidth() + "x" + image.getHeight());
 
-        int squareSize = 20;
         processImage(image, squareSize);
 
         ImageIO.write(image, "jpg", new File("result.jpg"));
