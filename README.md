@@ -1,8 +1,16 @@
 # Image Averager
 
-A Java program that makes a JPEG file blurry. It splits the image into squares, replaces every square with the average color of its pixels, and shows the result **progressively** in a window while it works. The finished image is saved as `result.jpg`.
+A Java program that turns a JPEG file into a mosaic. It splits the image into squares, replaces every square with the average color of its pixels, and shows the result **progressively** in a window while it works. The finished image is saved as `result.jpg`.
 
 Single-threaded (`S`) and multi-threaded (`M`) modes are available so the two can be compared.
+
+## Result
+
+| Original | Modified |
+| --- | --- |
+|<img width="554" height="554" alt="photo" src="https://github.com/user-attachments/assets/9901f441-4bed-4d24-ab6b-1a5fb02a0077" /> | <img width="554" height="554" alt="result" src="https://github.com/user-attachments/assets/460694a2-bb86-402f-917a-8070176e39e8" /> |
+
+The result above uses the following command: `java -cp out Main photo.jpg 9 M`
 
 ## Requirements
 
