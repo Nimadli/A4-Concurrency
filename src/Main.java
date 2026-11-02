@@ -57,15 +57,6 @@ public class Main {
         worker.start();
     }
 
-    // Apply averaging function on the whole image
-    static void processImage(BufferedImage image, int squareSize){
-        for(int y = 0; y < image.getHeight(); y += squareSize){
-            for(int x = 0; x < image.getWidth(); x += squareSize){
-                averageSquare(image, x, y, squareSize);
-            }
-        }
-    }
-
     // Averages every square whose top edge lies on [startY, endY) with squareSize intervals
     static void processBand(BufferedImage image, int squareSize, int startY, int endY){
         for(int y = startY; y < endY; y += squareSize){
@@ -75,9 +66,9 @@ public class Main {
         }
     }
 
-    // Replace the square starting at (startX, startY) with the mean value of pixels for each color
+    // Replace the square starting at (startX, startY) with the root mean square of pixels for each color
     static void averageSquare(BufferedImage image, int startX, int startY, int squareSize){
-        long redSum = 0, greenSum = 0, blueSum = 0;
+        long redSquares = 0, greenSquares = 0, blueSquares = 0;
         int count = 0;
         int endX = Math.min(startX + squareSize, image.getWidth());
         int endY = Math.min(startY + squareSize, image.getHeight());
@@ -85,14 +76,17 @@ public class Main {
         for(int y = startY; y < endY; y++){
             for(int x = startX; x < endX; x++){
                 int pixel = image.getRGB(x, y);
-                redSum += (pixel >> 16) & 0xFF;
-                greenSum += (pixel >> 8) & 0xFF;
-                blueSum += pixel & 0xFF;
+                int red = (pixel >> 16) & 0xFF;
+                int green = (pixel >> 8) & 0xFF;
+                int blue = pixel & 0xFF;
+                redSquares += red * red;
+                greenSquares += green * green;
+                blueSquares += blue * blue;
                 count++;
             }
         }
 
-        int average = (((int) (redSum / count) << 16) | ((int) (greenSum / count) << 8) | ((int) (blueSum / count)));
+        int average = ((rootMean(redSquares, count) << 16) | (rootMean(greenSquares, count) << 8) | (rootMean(blueSquares, count)));
 
         for(int y = startY; y < endY; y++){
             for(int x = startX; x < endX; x++){
@@ -101,15 +95,19 @@ public class Main {
         }
     }
 
+    static int rootMean(long sumOfSquares, int count){
+        return (int) Math.round(Math.sqrt((double) sumOfSquares / count));
+    }
+
     // Apply averaging function on the whole image with multiple threads
     static void processImageParallel(BufferedImage image, int squareSize) throws InterruptedException{
-        int threadcount = Runtime.getRuntime().availableProcessors();
-        System.out.println("Number of available threads: " + threadcount);
+        int threadCount = Runtime.getRuntime().availableProcessors();
+        System.out.println("Number of available threads: " + threadCount);
         int squareRows = (image.getHeight() + squareSize - 1) / squareSize;
-        int rowsPerThread = (squareRows + threadcount - 1) / threadcount;
+        int rowsPerThread = (squareRows + threadCount - 1) / threadCount;
 
-        Thread[] threads = new Thread[threadcount];
-        for(int i = 0; i < threadcount; i++){
+        Thread[] threads = new Thread[threadCount];
+        for(int i = 0; i < threadCount; i++){
             int startY = i * rowsPerThread * squareSize;
             int endY = Math.min((i + 1) * rowsPerThread * squareSize, image.getHeight());
 
