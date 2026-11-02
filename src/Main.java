@@ -6,13 +6,16 @@ import java.io.File;
 import java.io.IOException;
 
 public class Main {
+    private static final int TARGET_SWEEP_MS = 16000;
     public static void main(String[] args) throws Exception{
         if(args.length != 3){
             System.out.println("Usage: java -cp out Main <file.jpg> <squareSize> <S|M>");
             return;
         }
+
         String fileName = args[0];
         int squareSize;
+
         try{
             squareSize = Integer.parseInt(args[1]);
         } catch (NumberFormatException e) {
@@ -30,8 +33,11 @@ public class Main {
             return;
         }
 
+        
         BufferedImage image = ImageIO.read(new File(fileName));
         System.out.println("Loaded " + image.getWidth() + "x" + image.getHeight());
+        int squareRows = (image.getHeight() + squareSize - 1) / squareSize;
+        int rowDelayMs = TARGET_SWEEP_MS / squareRows;
 
         ImageViewer viewer = new ImageViewer(image);
         SwingUtilities.invokeLater(viewer::open);
@@ -40,9 +46,9 @@ public class Main {
             long start = System.currentTimeMillis();
             try {
                 if(mode.equals("M")){
-                    processImageParallel(image, squareSize);
+                    processImageParallel(image, squareSize, rowDelayMs);
                 } else {
-                    processBand(image, squareSize, 0, image.getHeight());
+                    processBand(image, squareSize, 0, image.getHeight(), rowDelayMs);
                 }
                 System.out.println("Processing took " + (System.currentTimeMillis() - start) + " ms.");
                 ImageIO.write(image, "jpg", new File("result.jpg"));
@@ -58,11 +64,12 @@ public class Main {
     }
 
     // Averages every square whose top edge lies on [startY, endY) with squareSize intervals
-    static void processBand(BufferedImage image, int squareSize, int startY, int endY){
+    static void processBand(BufferedImage image, int squareSize, int startY, int endY, int rowDelayMs){
         for(int y = startY; y < endY; y += squareSize){
             for(int x = 0; x < image.getWidth(); x += squareSize){
                 averageSquare(image, x, y, squareSize);
             }
+            pause(rowDelayMs);
         }
     }
 
@@ -99,8 +106,17 @@ public class Main {
         return (int) Math.round(Math.sqrt((double) sumOfSquares / count));
     }
 
+    static void pause(int delayMs){
+        if(delayMs <= 0) return;
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     // Apply averaging function on the whole image with multiple threads
-    static void processImageParallel(BufferedImage image, int squareSize) throws InterruptedException{
+    static void processImageParallel(BufferedImage image, int squareSize, int rowDelayMs) throws InterruptedException{
         int threadCount = Runtime.getRuntime().availableProcessors();
         System.out.println("Number of available threads: " + threadCount);
         int squareRows = (image.getHeight() + squareSize - 1) / squareSize;
@@ -115,7 +131,7 @@ public class Main {
                 break;
             }
 
-            threads[i] = new Thread(() -> processBand(image, squareSize, startY, endY));
+            threads[i] = new Thread(() -> processBand(image, squareSize, startY, endY, rowDelayMs));
             threads[i].start();
         }
 
