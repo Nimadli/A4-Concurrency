@@ -37,10 +37,18 @@ public class Main {
         SwingUtilities.invokeLater(viewer::open);
 
         Thread worker = new Thread(() -> {
-            processImage(image, squareSize);
+            long start = System.currentTimeMillis();
             try {
+                if(mode.equals("M")){
+                    processImageParallel(image, squareSize);
+                } else {
+                    processBand(image, squareSize, 0, image.getHeight());
+                }
+                System.out.println("Processing took " + (System.currentTimeMillis() - start) + " ms.");
                 ImageIO.write(image, "jpg", new File("result.jpg"));
                 System.out.println("Saved the file");
+            } catch (InterruptedException e){
+                Thread.currentThread().interrupt();
             } catch (IOException e) {
                 System.out.println("Could not save result.jpg: " + e.getMessage());
             }
@@ -58,7 +66,16 @@ public class Main {
         }
     }
 
-    // Replace the square starting at (startX, startY) with the mean value of pixels for each color.
+    // Averages every square whose top edge lies on [startY, endY) with squareSize intervals
+    static void processBand(BufferedImage image, int squareSize, int startY, int endY){
+        for(int y = startY; y < endY; y += squareSize){
+            for(int x = 0; x < image.getWidth(); x += squareSize){
+                averageSquare(image, x, y, squareSize);
+            }
+        }
+    }
+
+    // Replace the square starting at (startX, startY) with the mean value of pixels for each color
     static void averageSquare(BufferedImage image, int startX, int startY, int squareSize){
         long redSum = 0, greenSum = 0, blueSum = 0;
         int count = 0;
@@ -80,6 +97,33 @@ public class Main {
         for(int y = startY; y < endY; y++){
             for(int x = startX; x < endX; x++){
                 image.setRGB(x, y, average);
+            }
+        }
+    }
+
+    // Apply averaging function on the whole image with multiple threads
+    static void processImageParallel(BufferedImage image, int squareSize) throws InterruptedException{
+        int threadcount = Runtime.getRuntime().availableProcessors();
+        System.out.println("Number of available threads: " + threadcount);
+        int squareRows = (image.getHeight() + squareSize - 1) / squareSize;
+        int rowsPerThread = (squareRows + threadcount - 1) / threadcount;
+
+        Thread[] threads = new Thread[threadcount];
+        for(int i = 0; i < threadcount; i++){
+            int startY = i * rowsPerThread * squareSize;
+            int endY = Math.min((i + 1) * rowsPerThread * squareSize, image.getHeight());
+
+            if(startY >= image.getHeight()){
+                break;
+            }
+
+            threads[i] = new Thread(() -> processBand(image, squareSize, startY, endY));
+            threads[i].start();
+        }
+
+        for(Thread thread: threads){
+            if(thread != null){
+                thread.join();
             }
         }
     }
